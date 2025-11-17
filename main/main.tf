@@ -74,7 +74,7 @@ resource "google_container_node_pool" "primary_nodes" {
     machine_type        = var.node_machine_type
     disk_size_gb        = var.node_disk_size_gb
     disk_type           = "pd-standard"
-    enable_external_ips = false   # <-- required to avoid quota issues
+    enable_external_ips = false
   }
 
   management {
@@ -83,8 +83,3 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
-  management {
-    auto_upgrade = true
-    auto_repair  = true
-  }
-}
