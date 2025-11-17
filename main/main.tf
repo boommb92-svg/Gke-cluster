@@ -26,10 +26,13 @@ resource "google_project_service" "container" {
   project = var.project
   service = "container.googleapis.com"
 }
-resource "google_container_cluster" "primary" {
-  name     = var.cluster_name
-  location = var.location
-  project  = var.project
+resource "google_container_node_pool" "primary_nodes" {
+  name       = "my-gke-pool"
+  project    = var.project
+  cluster    = google_container_cluster.primary.name
+  location   = var.location
+
+  node_count = 1
 
   deletion_protection = false
   remove_default_node_pool = false
@@ -66,6 +69,8 @@ resource "google_container_cluster" "primary" {
       machine_type = var.node_machine_type
       disk_size_gb = var.node_disk_size_gb
       disk_type    = "pd-standard"
+      access_config = []  
+      
 
       oauth_scopes = [
         "https://www.googleapis.com/auth/logging.write",
