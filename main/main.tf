@@ -58,7 +58,8 @@ resource "google_container_node_pool" "primary_nodes" {
   node_config {
     machine_type = var.node_machine_type
     disk_size_gb = var.node_disk_size_gb
-    disk_type    = "pd-standard"     # <--- use standard persistent disk (HDD)
+    disk_type    = "pd-standard"     # <-- HDD (standard persistent disk), avoids SSD quota
+
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",
@@ -75,4 +76,6 @@ resource "google_container_node_pool" "primary_nodes" {
     auto_repair  = true
     auto_upgrade = true
   }
+
+  depends_on = [google_container_cluster.primary]
 }
