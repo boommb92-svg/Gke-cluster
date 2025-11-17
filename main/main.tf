@@ -71,10 +71,39 @@ resource "google_container_node_pool" "primary_nodes" {
   node_count = var.node_count
 
   node_config {
-    machine_type        = var.node_machine_type
-    disk_size_gb        = var.node_disk_size_gb
-    disk_type           = "pd-standard"
-    enable_external_ips = false
+    machine_type = var.node_machine_type
+    disk_size_gb = var.node_disk_size_gb
+    disk_type    = "pd-standard"
+    # existing node pool keeps its external IPs for now
+  }
+
+  management {
+    auto_upgrade = true
+    auto_repair  = true
+  }
+
+  lifecycle {
+    ignore_changes = [
+      node_config,        # prevents recreation
+      node_count          # optional
+    ]
+  }
+}
+resource "google_container_node_pool" "private_nodes" {
+  name       = "private-pool"
+  cluster    = google_container_cluster.primary.name
+  location   = var.location
+  project    = var.project
+
+  node_count = 1
+
+  node_config {
+    machine_type = "e2-medium"
+    disk_size_gb = 50
+    disk_type    = "pd-standard"
+    spot         = false
+    taint        = []
+    # NO EXTERNAL IPS BECAUSE PRIVATE CLUSTER MANDATES INTERNAL-ONLY
   }
 
   management {
@@ -82,4 +111,6 @@ resource "google_container_node_pool" "primary_nodes" {
     auto_repair  = true
   }
 }
+
+
 
