@@ -26,14 +26,11 @@ resource "google_project_service" "container" {
   project = var.project
   service = "container.googleapis.com"
 }
-
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
   location = var.location
   project  = var.project
 
-  # We supply a node_pool so the cluster create call does not implicitly
-  # create a default pool that might request pd-ssd.
   remove_default_node_pool = false
 
   networking_mode = "VPC_NATIVE"
@@ -41,6 +38,14 @@ resource "google_container_cluster" "primary" {
 
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
+
+  # <-- add this block
+  private_cluster_config {
+    enable_private_nodes    = true                 # nodes will NOT have external IPs
+    master_ipv4_cidr_block  = "172.16.0.0/28"      # small CIDR for the control-plane
+    enable_private_endpoint = false                # optional: keep control plane endpoint public if you want
+  }
+  # -->
 
   node_pool {
     name               = "${var.cluster_name}-pool"
@@ -59,7 +64,7 @@ resource "google_container_cluster" "primary" {
     node_config {
       machine_type = var.node_machine_type
       disk_size_gb = var.node_disk_size_gb
-      disk_type    = "pd-standard"     # HDD -> avoids SSD quota
+      disk_type    = "pd-standard"
 
       oauth_scopes = [
         "https://www.googleapis.com/auth/logging.write",
@@ -74,3 +79,5 @@ resource "google_container_cluster" "primary" {
     google_project_service.container
   ]
 }
+
+
