@@ -17,7 +17,6 @@ provider "google" {
   region  = var.region
 }
 
-# Enable APIs (optional but useful)
 resource "google_project_service" "compute" {
   project = var.project
   service = "compute.googleapis.com"
@@ -33,18 +32,18 @@ resource "google_container_cluster" "primary" {
   location = var.location
   project  = var.project
 
-  # Keep the default node pool but configure it explicitly (so cluster create call
-  # will use pd-standard and not request SSDs).
+  # Keep default behaviour (we'll provide a node_pool block to avoid implicit SSD default)
   remove_default_node_pool = false
 
-  networking_mode = "VPC_NATIVE"
+  networking_mode    = "VPC_NATIVE"
   ip_allocation_policy {}
 
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
-  default_node_pool {
-    name               = "${var.cluster_name}-default-pool"
+  # Explicit node pool created as part of cluster create (uses pd-standard)
+  node_pool {
+    name               = "${var.cluster_name}-pool"
     initial_node_count = var.node_count
 
     autoscaling {
@@ -57,10 +56,11 @@ resource "google_container_cluster" "primary" {
       auto_upgrade = true
     }
 
-    node_config {
+    config {
       machine_type = var.node_machine_type
       disk_size_gb = var.node_disk_size_gb
-      disk_type    = "pd-standard"     # HDD (avoids SSD quota)
+      disk_type    = "pd-standard"     # <- HDD so no SSD quota consumed
+
       oauth_scopes = [
         "https://www.googleapis.com/auth/logging.write",
         "https://www.googleapis.com/auth/monitoring",
