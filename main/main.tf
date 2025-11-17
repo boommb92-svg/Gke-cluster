@@ -17,6 +17,7 @@ provider "google" {
   region  = var.region
 }
 
+# Enable required APIs
 resource "google_project_service" "compute" {
   project = var.project
   service = "compute.googleapis.com"
@@ -26,59 +27,31 @@ resource "google_project_service" "container" {
   project = var.project
   service = "container.googleapis.com"
 }
-resource "google_container_node_pool" "primary_nodes" {
-  name       = "my-gke-pool"
-  project    = var.project
-  cluster    = google_container_cluster.primary.name
-  location   = var.location
 
-  node_count = 1
+# ------------------------------
+#   GKE CLUSTER (MUST EXIST)
+# ------------------------------
+resource "google_container_cluster" "primary" {
+  name     = var.cluster_name
+  location = var.location
+  project  = var.project
 
   deletion_protection = false
-  remove_default_node_pool = false
+
+  remove_default_node_pool = true
+  initial_node_count       = 1
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
 
+  private_cluster_config {
+    enable_private_nodes    = true
+    enable_private_endpoint = false
+    master_ipv4_cidr_block  = "172.16.0.0/28"
+  }
+
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
-
-  # <-- add this block
-  private_cluster_config {
-    enable_private_nodes    = true                 # nodes will NOT have external IPs
-    master_ipv4_cidr_block  = "172.16.0.0/28"      # small CIDR for the control-plane
-    enable_private_endpoint = false                # optional: keep control plane endpoint public if you want
-  }
-  # -->
-
-  node_pool {
-    name               = "${var.cluster_name}-pool"
-    initial_node_count = var.node_count
-
-    autoscaling {
-      min_node_count = var.node_min_count
-      max_node_count = var.node_max_count
-    }
-
-    management {
-      auto_repair  = true
-      auto_upgrade = true
-    }
-
-    node_config {
-      machine_type = var.node_machine_type
-      disk_size_gb = var.node_disk_size_gb
-      disk_type    = "pd-standard"
-      access_config = []  
-      
-
-      oauth_scopes = [
-        "https://www.googleapis.com/auth/logging.write",
-        "https://www.googleapis.com/auth/monitoring",
-        "https://www.googleapis.com/auth/devstorage.read_only"
-      ]
-    }
-  }
 
   depends_on = [
     google_project_service.compute,
@@ -86,4 +59,26 @@ resource "google_container_node_pool" "primary_nodes" {
   ]
 }
 
+# ------------------------------
+#   SEPARATE NODE POOL
+# ------------------------------
+resource "google_container_node_pool" "primary_nodes" {
+  name       = "${var.cluster_name}-pool"
+  cluster    = google_container_cluster.primary.name
+  location   = var.location
+  project    = var.project
 
+  node_count = var.node_count
+
+  node_config {
+    machine_type  = var.node_machine_type
+    disk_size_gb  = var.node_disk_size_gb
+    disk_type     = "pd-standard"
+    access_config = []   # NO EXTERNAL IPs
+  }
+
+  management {
+    auto_upgrade = true
+    auto_repair  = true
+  }
+}
