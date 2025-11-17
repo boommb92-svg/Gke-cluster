@@ -63,7 +63,7 @@ resource "google_container_cluster" "primary" {
 #   SEPARATE NODE POOL
 # ------------------------------
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "${var.cluster_name}-pool"
+  name       = "my-gke-pool"
   cluster    = google_container_cluster.primary.name
   location   = var.location
   project    = var.project
@@ -71,11 +71,17 @@ resource "google_container_node_pool" "primary_nodes" {
   node_count = var.node_count
 
   node_config {
-    machine_type       = var.node_machine_type
-    disk_size_gb       = var.node_disk_size_gb
-    disk_type          = "pd-standard"
-    enable_external_ips = false   # <- THIS IS THE KEY FIX
+    machine_type        = var.node_machine_type
+    disk_size_gb        = var.node_disk_size_gb
+    disk_type           = "pd-standard"
+    enable_external_ips = false   # <-- required to avoid quota issues
   }
+
+  management {
+    auto_upgrade = true
+    auto_repair  = true
+  }
+}
 
   management {
     auto_upgrade = true
