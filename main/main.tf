@@ -31,6 +31,7 @@ resource "google_container_cluster" "primary" {
   location = var.location
   project  = var.project
 
+  deletion_protection = false
   remove_default_node_pool = false
 
   networking_mode = "VPC_NATIVE"
