@@ -1,4 +1,3 @@
-# main.tf
 terraform {
   required_providers {
     google = {
@@ -8,10 +7,8 @@ terraform {
   }
 
   backend "gcs" {
-    # You can hardcode values here OR pass them at terraform init via -backend-config (recommended)
-    bucket = var.state_bucket_name
-    prefix = var.state_prefix
-    # project and credentials may be passed via -backend-config or ADC.
+    bucket = "my-tfstate-bucket-1763375630"
+    prefix = "gke-prod"
   }
 }
 
@@ -20,18 +17,16 @@ provider "google" {
   region  = var.region
 }
 
-# Enable necessary APIs (optional but recommended to avoid failure)
-resource "google_project_service" "container" {
-  service = "container.googleapis.com"
-  project = var.project
-}
-
 resource "google_project_service" "compute" {
-  service = "compute.googleapis.com"
   project = var.project
+  service = "compute.googleapis.com"
 }
 
-# Create the GKE cluster and remove default node pool (we'll manage node pool separately)
+resource "google_project_service" "container" {
+  project = var.project
+  service = "container.googleapis.com"
+}
+
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
   location = var.location
@@ -39,24 +34,24 @@ resource "google_container_cluster" "primary" {
 
   remove_default_node_pool = true
   initial_node_count       = 1
-  networking_mode          = "VPC_NATIVE"
+
+  networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
 
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
   depends_on = [
-    google_project_service.container,
-    google_project_service.compute
+    google_project_service.compute,
+    google_project_service.container
   ]
 }
 
-# Managed node pool (recommended)
 resource "google_container_node_pool" "primary_nodes" {
   name     = "${var.cluster_name}-pool"
-  project  = var.project
-  location = google_container_cluster.primary.location
   cluster  = google_container_cluster.primary.name
+  location = google_container_cluster.primary.location
+  project  = var.project
 
   initial_node_count = var.node_count
 
@@ -80,7 +75,4 @@ resource "google_container_node_pool" "primary_nodes" {
     auto_repair  = true
     auto_upgrade = true
   }
-
-  depends_on = [google_container_cluster.primary]
 }
-
