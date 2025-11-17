@@ -32,16 +32,16 @@ resource "google_container_cluster" "primary" {
   location = var.location
   project  = var.project
 
-  # Keep default behaviour (we'll provide a node_pool block to avoid implicit SSD default)
+  # We supply a node_pool so the cluster create call does not implicitly
+  # create a default pool that might request pd-ssd.
   remove_default_node_pool = false
 
-  networking_mode    = "VPC_NATIVE"
+  networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
 
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
-  # Explicit node pool created as part of cluster create (uses pd-standard)
   node_pool {
     name               = "${var.cluster_name}-pool"
     initial_node_count = var.node_count
@@ -56,10 +56,10 @@ resource "google_container_cluster" "primary" {
       auto_upgrade = true
     }
 
-    config {
+    node_config {
       machine_type = var.node_machine_type
       disk_size_gb = var.node_disk_size_gb
-      disk_type    = "pd-standard"     # <- HDD so no SSD quota consumed
+      disk_type    = "pd-standard"     # HDD -> avoids SSD quota
 
       oauth_scopes = [
         "https://www.googleapis.com/auth/logging.write",
