@@ -32,8 +32,10 @@ resource "google_container_cluster" "primary" {
   location = var.location
   project  = var.project
 
-  remove_default_node_pool = true
-  initial_node_count       = 1
+  # Do NOT remove default node pool here — configure it explicitly so the cluster
+  # create call does not allocate SSDs.
+  remove_default_node_pool = false
+  initial_node_count       = var.node_count
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
@@ -41,24 +43,12 @@ resource "google_container_cluster" "primary" {
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
-  depends_on = [
-    google_project_service.compute,
-    google_project_service.container
-  ]
-}
-
-resource "google_container_node_pool" "primary_nodes" {
-  name     = "${var.cluster_name}-pool"
-  cluster  = google_container_cluster.primary.name
-  location = google_container_cluster.primary.location
-  project  = var.project
-
-  initial_node_count = var.node_count
-
+  # Configure the default node pool to use pd-standard so cluster creation
+  # does not request SSD quota.
   node_config {
     machine_type = var.node_machine_type
     disk_size_gb = var.node_disk_size_gb
-    disk_type    = "pd-standard"     # <-- HDD (standard persistent disk), avoids SSD quota
+    disk_type    = "pd-standard"
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
@@ -68,6 +58,7 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 
   autoscaling {
+    # This autoscaling block applies to the default node pool
     min_node_count = var.node_min_count
     max_node_count = var.node_max_count
   }
@@ -77,5 +68,8 @@ resource "google_container_node_pool" "primary_nodes" {
     auto_upgrade = true
   }
 
-  depends_on = [google_container_cluster.primary]
+  depends_on = [
+    google_project_service.compute,
+    google_project_service.container
+  ]
 }
